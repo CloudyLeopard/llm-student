@@ -5,7 +5,7 @@ import os
 from fastapi import FastAPI, WebSocket, Request, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from openai import OpenAI
+from openai import AsyncOpenAI
 
 # --- CONFIGURATION ---
 # We use standard ANSI codes for the web terminal
@@ -19,7 +19,7 @@ WHITE = "\033[37m"
 
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
-client = OpenAI()
+client = AsyncOpenAI()
 
 @app.get("/", response_class=HTMLResponse)
 async def get(request: Request):
@@ -53,7 +53,7 @@ class AsyncTeachingSimulator:
         self.persona = ""
         
         # CONVERSATION STATE
-        self.conversation_history = [] # Replacing specific conversation_id with manual history for standard API compatibility
+        self.conversation_history = []
         
         # EVENT FLAGS
         self.is_asleep = False
@@ -77,27 +77,50 @@ class AsyncTeachingSimulator:
         # await self.ws.send_text(f"{data}\r\n")
         return data.strip()
 
-    def _call_llm(self, messages, json_mode=False):
+    async def _call_llm(self, messages, json_mode=False):
         """
         Standardized wrapper for OpenAI Chat Completions.
         """
+        response_api = True
+
+        if response_api:
+            response_format = {"type": "text"}
+            if json_mode:
+                response_format = {"type": "json_object"}
+            
+            if messages[0]['role'] == 'system':
+                # for some reason openai uses 'developer' in responses API
+                messages[0]['role'] = 'developer'
+            
+            kwargs = {
+                "model": "gpt-5.2",
+                "input": messages,
+                "text": {"format": response_format},
+                "max_output_tokens": 2048,
+            }
+
+            response = await client.responses.create(**kwargs)
+
+            return response.output_text
+        
+
         try:
             response_format = "text"
             if json_mode:
                 response_format = "json_object"
             
-            # Using gpt-4o as a reliable default for standard API keys
-            # You can change this to "gpt-5.2" if you have access
-            response = client.chat.completions.create(
-                model="gpt-4o", 
+            response = await client.chat.completions.create(
+                model="gpt-5.2", 
                 messages=messages,
                 response_format={"type": response_format},
                 max_tokens=2048
             )
             return response.choices[0].message.content
+        
         except Exception as e:
             print(f"API Error: {e}")
             return "{}" if json_mode else "Error"
+        
 
     async def init_student_conversation(self):
         """
@@ -152,7 +175,7 @@ CRITICAL RULES (KNOWLEDGE CONTAINMENT):
             {"role": "system", "content": "Curriculum Generator."},
             {"role": "user", "content": f"List 5 simple atomic facts about {self.topic}."}
         ]
-        raw = self._call_llm(messages)
+        raw = await self._call_llm(messages)
         self.curriculum = [l.strip() for l in raw.split('\n') if l.strip()][:5]
 
         # # Print curriculum to terminal
@@ -170,7 +193,7 @@ Generate 10 open-ended test questions.
 Output JSON: {{ "questions": [ {{ "difficulty": "...", "question": "...", "std_answer": "..." }} ] }}
 """
         messages = [{"role": "user", "content": prompt}]
-        json_str = self._call_llm(messages, json_mode=True)
+        json_str = await self._call_llm(messages, json_mode=True)
         try:
             data = json.loads(json_str)
             self.test_questions = data.get("questions", [])
@@ -184,20 +207,20 @@ Output JSON: {{ "questions": [ {{ "difficulty": "...", "question": "...", "std_a
         if random.random() > 0.3: return 
         
         events = ["NAP", "MISCONCEPTION", "DOG", "ALIEN", "FIRE_DRILL", "EUREKA"]
-        weights = [0.25, 0.30, 0.10, 0.20, 0.15]
+        weights = [0.20, 0.30, 0.10, 0.10, 0.15, 0.15]
         event = random.choices(events, weights)[0]
         
         if event == "NAP":
             self.is_asleep = True
-            await self.print_event("The student just faceplanted. They are ASLEEP.")
+            await self.print_event("TRAINER B used YAWN! It's super effective!")
             
         elif event == "MISCONCEPTION":
             if not self.knowledge_ledger: return
             idx = random.randint(0, len(self.knowledge_ledger)-1)
             prompt = f"Rewrite this to be WRONG (Only respond with the rewritten note): '{self.knowledge_ledger[idx]}'"
-            bad_note = self._call_llm([{"role": "user", "content": prompt}])
+            bad_note = await self._call_llm([{"role": "user", "content": prompt}])
             self.knowledge_ledger[idx] = bad_note
-            await self.print_event("The student looks confused... (Memory corrupted!)")
+            await self.print_event("The student started using reddit in class! (Memory corrupted)")
         
         elif event == "DOG":
             if not self.knowledge_ledger: return
@@ -209,22 +232,45 @@ Output JSON: {{ "questions": [ {{ "difficulty": "...", "question": "...", "std_a
             for i in indices_to_replace:
                 words[i] = "woof"
             self.knowledge_ledger[idx] = " ".join(words)
-            await self.print_event("A dog ran by and ate the student's notes! 🐕 (Memory corrupted!)")
+            await self.print_event("A dog ran by and barked at the student! The woofs lingers...")
             
         elif event == "ALIEN":
             self.alien_countdown = 3
             self.attempts_left = 1 
-            await self.print_event("ALIEN INVASION! 👽 Pass the TEST in 3 turns or Earth dies.")
+            await self.print_event("ALIEN INVASION! They demand your student pass the TEST in 3 turns or Earth dies (or so they claim).")
             
         elif event == "FIRE_DRILL":
-            await self.print_event("FIRE DRILL! 🔥 Fortunately I'm too lazy to implement a fire drill so the fire fades away naturally.")
+            await self.print_event("FIRE DRILL! Fortunately the fire alarm is broken so nothing happens (I'm too lazy to implement a fire drill).")
                 
         elif event == "EUREKA":
             if len(self.knowledge_ledger) >= 2:
-                prompt = f"Synthesize these notes: {self.knowledge_ledger}"
-                good_note = self._call_llm([{"role": "user", "content": prompt}])
+                # 1. Grab a random subset of notes (2-4 items) to force a connection between them
+                subset_size = min(4, len(self.knowledge_ledger))
+                notes_subset = random.sample(self.knowledge_ledger, subset_size)
+                
+                # 2. The upgraded prompt
+                prompt = f"""
+                You are a student having a sudden 'Aha!' moment.
+                
+                YOUR CURRENT NOTES (FRAGMENTS):
+                {json.dumps(notes_subset)}
+                
+                YOUR PERSONA: {self.persona}
+                
+                TASK:
+                Look at these disjointed facts and find a deeper connection, pattern, or rule that ties them together.
+                Create a new "Epiphany Note" that combines them into a smarter insight.
+                
+                RESTRICTIONS:
+                - Do NOT simply list the facts again.
+                - The new note must be a synthesis (e.g., "Wait, so X implies Y because of Z!")
+                - Keep it under 20 words.
+                - It MUST sound like your Persona wrote it.
+                - Respond only with the new note string.
+                """
+                good_note = await self._call_llm([{"role": "user", "content": prompt}])
                 self.knowledge_ledger.append(good_note)
-                await self.print_event("EUREKA! 💡 The student connected the dots.")
+                await self.print_event("EUCALYPTUS! Or is it eureka? Either way, the student had an epiphany and connected the dots.")
 
     async def process_learning(self, teacher_input_text):
         # 1. Mechanics
@@ -290,7 +336,7 @@ RULES:
         ]
         
         # Stateless call (the "brain" processing the input)
-        note = self._call_llm(messages)
+        note = await self._call_llm(messages)
         
         if "NOTHING" in note or len(note) < 3: 
             return None
@@ -329,7 +375,7 @@ Reply to the teacher's last message.
             {"role": "user", "content": teacher_input_text}
         ]
         
-        response_text = self._call_llm(turn_messages)
+        response_text = await self._call_llm(turn_messages)
         
         # Update history (keep it simple for now, append user/assistant)
         self.conversation_history.append({"role": "user", "content": teacher_input_text})
@@ -376,7 +422,7 @@ Reply to the teacher's last message.
                 {"role": "system", "content": student_system_prompt},
                 {"role": "user", "content": q['question']}
             ]
-            student_ans = self._call_llm(messages)
+            student_ans = await self._call_llm(messages)
             await self.print_student(f"Answer: {student_ans}")
             
             # The Teacher AI grades it
@@ -384,7 +430,7 @@ Reply to the teacher's last message.
                 {"role": "system", "content": "You are a strict teacher grading a test."},
                 {"role": "user", "content": f"Q: {q['question']}\nStandard Answer: {q['std_answer']}\nStudent Answer: {student_ans}\n\nTask: Grade this. If the student admits they don't know, or answers incorrectly/vaguely compared to the Standard Answer, it is a FAIL.\nOutput: PASS or FAIL."}
             ]
-            grade = self._call_llm(grade_messages)
+            grade = await self._call_llm(grade_messages)
             
             if "PASS" in grade.upper():
                 await self.ws.send_text(f"{GREEN}>> CORRECT{RESET}\r\n")
