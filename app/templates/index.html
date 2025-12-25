@@ -49,6 +49,14 @@
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 
+        // --- KEEP-ALIVE HEARTBEAT ---
+        // Send a invisible message every 30 seconds to prevent Render from closing the connection
+        setInterval(function() {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send("__PING__");
+            }
+        }, 30000);
+
         ws.onopen = () => {
             term.writeln('\x1b[32m>>> CONNECTED TO TEACHING SIMULATOR SERVER...\x1b[0m');
         };

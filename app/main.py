@@ -64,6 +64,7 @@ class AsyncTeachingSimulator:
         await self.ws.send_text(f"{CYAN}[SYSTEM]: {text}{RESET}\r\n")
 
     async def print_student(self, text):
+        # not used because i want [STUDENT] to appear before the answer since generating answer may lag
         await self.ws.send_text(f"{YELLOW}[STUDENT]: {text}{RESET}\r\n")
 
     async def print_event(self, text):
@@ -72,10 +73,17 @@ class AsyncTeachingSimulator:
     async def get_input(self, prompt_text=""):
         if prompt_text:
             await self.ws.send_text(f"{GREEN}{prompt_text}{RESET}")
-        data = await self.ws.receive_text()
-        # Echo the input back to the terminal so the user sees what they typed
-        # await self.ws.send_text(f"{data}\r\n")
-        return data.strip()
+        
+        while True:
+            data = await self.ws.receive_text()
+
+            if data == "__PING__":
+                # Ignore heartbeat messages
+                continue
+
+            # Echo the input back to the terminal so the user sees what they typed
+            # await self.ws.send_text(f"{data}\r\n")
+            return data.strip()
 
     async def _call_llm(self, messages, json_mode=False):
         """
@@ -381,13 +389,13 @@ Reply to the teacher's last message.
         self.conversation_history.append({"role": "user", "content": teacher_input_text})
         self.conversation_history.append({"role": "assistant", "content": response_text})
         
-        return response_text
+        return response_text.replace("\n", "\r\n").strip()
 
     async def run_quiz(self):
         self.attempts_left -= 1
         await self.print_system("\r\n--- FINAL EXAM INITIATED ---")
         score = 0
-        quiz_subset = random.sample(self.test_questions, min(6, len(self.test_questions)))
+        quiz_subset = random.sample(self.test_questions, min(5, len(self.test_questions)))
         
         full_brain_dump = "\r\n".join(self.knowledge_ledger)
         await self.print_system(f"[INFO] Student's Brain Dump:\r\n{full_brain_dump}\r\n")
@@ -422,8 +430,11 @@ Reply to the teacher's last message.
                 {"role": "system", "content": student_system_prompt},
                 {"role": "user", "content": q['question']}
             ]
+
+            await self.ws.send_text(f"{YELLOW}[STUDENT]: ")
             student_ans = await self._call_llm(messages)
-            await self.print_student(f"Answer: {student_ans}")
+            await self.ws.send_text(f"{student_ans}{RESET}\r\n")
+
             
             # The Teacher AI grades it
             grade_messages = [
@@ -461,7 +472,7 @@ Reply to the teacher's last message.
             + "- Your student will learn and take notes (or at least try to).\r\n"
             + "- When you think they are ready, type 'TEST' to test the student.\r\n"
             + f"- The student has {self.attempts_left} attempts to pass the exam.\r\n"
-            + "- The student must achieve at least 5/6 correct to pass.\r\n"
+            + "- The student must achieve at least 4/5 correct to pass.\r\n"
             + "- You can attach images using /image <url> (...I think)\r\n\n"
             + "COMMANDS: /image <url>, TEST, QUIT\r\n"
             + "========================================"
@@ -515,7 +526,8 @@ Reply to the teacher's last message.
             if new_note and new_note != "ASLEEP":
                 self.knowledge_ledger.append(new_note)
 
+            await self.ws.send_text(f"{YELLOW}[STUDENT]: ")
             response = await self.chat_with_student(input_text, new_note)
-            await self.print_student(response)
+            await self.ws.send_text(f"{response}{RESET}\r\n")
         
         await self.ws.send_text(f"\r\n{MAGENTA}GAME OVER. REFRESH TO RESTART.{RESET}\r\n")
