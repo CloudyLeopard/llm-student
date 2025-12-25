@@ -55,7 +55,7 @@
             if (ws.readyState === WebSocket.OPEN) {
                 ws.send("__PING__");
             }
-        }, 30000);
+        }, 5000);
 
         ws.onopen = () => {
             term.writeln('\x1b[32m>>> CONNECTED TO TEACHING SIMULATOR SERVER...\x1b[0m');

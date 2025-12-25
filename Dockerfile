@@ -4,7 +4,8 @@ FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim
 # Set working directory
 WORKDIR /app
 
-# Enable bytecode compilation
+# Env variables that help somehow
+ENV PYTHONUNBUFFERED=1
 ENV UV_COMPILE_BYTECODE=1
 
 # Copy dependencies first (better caching)
@@ -20,4 +21,4 @@ COPY app ./app
 EXPOSE 8000
 
 # Run the app
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers"]
