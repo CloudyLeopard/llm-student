@@ -390,7 +390,7 @@ class AsyncTeachingSimulator:
             return False
 
     async def start(self):
-        await self.ws.send_text(f"{MAGENTA}Welcome to CHAOS CLASSROOM v8.0 (Web Edition){RESET}\r\n")
+        await self.ws.send_text(f"{MAGENTA}Welcome to TEACHING SIMULATOR v1.0 (Web Edition){RESET}\r\n")
         
         await self.select_persona()
         await self.set_curriculum()
@@ -400,6 +400,24 @@ class AsyncTeachingSimulator:
         await self.ws.send_text("\r\n" + "="*40 + "\r\n")
         await self.ws.send_text(f"TOPIC: {self.topic}\r\n")
         await self.ws.send_text("COMMANDS: /image <url>, TEST, QUIT\r\n")
+
+        await self.print_system(f"""
+========================================
+TOPIC: {self.topic}
+MISSION: Teach your student well enough to pass the exam!
+DESCRIPTION: For one reason or another, you decided to teach an LLM role-playing as a student. \
+Attempt to teach complex topics to a LLM prompted to exhibit different bad study habits and personalities. \
+There also may or may not be random events that are definitely realistic classroom occurrences.
+INSTRUCTIONS: 
+  - Type your explanations below to teach the student.
+  - Your student will take notes (and probably misunderstand you).
+  - When you think they are ready, type 'TEST' to test the student.
+  - The student has {self.attempts_left} attempts to pass the exam.
+  - Thee student must achieve at least 5/6 correct to pass. 
+  - You can attach images using /image <url> (...I think)
+COMMANDS: /image <url>, TEST, QUIT
+========================================
+""")
         
         while self.attempts_left > 0:
             # Alien Event Logic
