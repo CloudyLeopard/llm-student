@@ -183,7 +183,7 @@ Output JSON: {{ "questions": [ {{ "difficulty": "...", "question": "...", "std_a
         if self.is_asleep or self.alien_countdown >= 0: return 
         if random.random() > 0.3: return 
         
-        events = ["NAP", "MISCONCEPTION", "ALIEN", "FIRE_DRILL", "EUREKA"]
+        events = ["NAP", "MISCONCEPTION", "DOG", "ALIEN", "FIRE_DRILL", "EUREKA"]
         weights = [0.25, 0.30, 0.10, 0.20, 0.15]
         event = random.choices(events, weights)[0]
         
@@ -194,10 +194,22 @@ Output JSON: {{ "questions": [ {{ "difficulty": "...", "question": "...", "std_a
         elif event == "MISCONCEPTION":
             if not self.knowledge_ledger: return
             idx = random.randint(0, len(self.knowledge_ledger)-1)
-            prompt = f"Rewrite this to be WRONG: '{self.knowledge_ledger[idx]}'"
+            prompt = f"Rewrite this to be WRONG (Only respond with the rewritten note): '{self.knowledge_ledger[idx]}'"
             bad_note = self._call_llm([{"role": "user", "content": prompt}])
             self.knowledge_ledger[idx] = bad_note
             await self.print_event("The student looks confused... (Memory corrupted!)")
+        
+        elif event == "DOG":
+            if not self.knowledge_ledger: return
+            idx = random.randint(0, len(self.knowledge_ledger)-1)
+            corrupted_note = self.knowledge_ledger[idx]
+            words = corrupted_note.split()
+            num_to_replace = max(1, len(words) // 2)
+            indices_to_replace = random.sample(range(len(words)), num_to_replace)
+            for i in indices_to_replace:
+                words[i] = "woof"
+            self.knowledge_ledger[idx] = " ".join(words)
+            await self.print_event("A dog ran by and ate the student's notes! 🐕 (Memory corrupted!)")
             
         elif event == "ALIEN":
             self.alien_countdown = 3
@@ -332,7 +344,7 @@ Reply to the teacher's last message.
         quiz_subset = random.sample(self.test_questions, min(6, len(self.test_questions)))
         
         full_brain_dump = "\r\n".join(self.knowledge_ledger)
-        await self.print_system(f"[INFO] Student's Brain Dump:\n{full_brain_dump}\n")
+        await self.print_system(f"[INFO] Student's Brain Dump:\r\n{full_brain_dump}\r\n")
         
         for q in quiz_subset:
             await self.ws.send_text(f"\r\n{WHITE}Q: {q['question']}{RESET}\r\n")
