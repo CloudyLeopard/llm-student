@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Chaos Classroom</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+    <style>
+        body { background-color: #000; margin: 0; padding: 0; height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        #terminal { width: 90%; height: 90%; }
+    </style>
+</head>
+<body>
+    <div id="terminal"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+    <script>
+        const term = new Terminal({
+            cursorBlink: true,
+            theme: { background: '#1e1e1e', foreground: '#f0f0f0' },
+            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            fontSize: 16
+        });
+        
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
+
+        // Connect to WebSocket
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
+
+        ws.onopen = () => {
+            term.writeln('\x1b[32m>>> CONNECTED TO CHAOS CLASSROOM SERVER...\x1b[0m');
+        };
+
+        ws.onmessage = (event) => {
+            term.write(event.data);
+        };
+
+        ws.onclose = () => {
+            term.writeln('\r\n\x1b[31m>>> CONNECTION LOST. REFRESH TO RESTART.\x1b[0m');
+        };
+
+        // Handle user input
+        let currentLine = '';
+
+        term.onData(e => {
+            // Enter key (13 is standard ASCII for CR)
+            if (e === '\r') {
+                term.write('\r\n');
+                ws.send(currentLine);
+                currentLine = '';
+            } 
+            // Backspace (127)
+            else if (e === '\x7f') {
+                if (currentLine.length > 0) {
+                    currentLine = currentLine.slice(0, -1);
+                    term.write('\b \b'); // Erase character visually
+                }
+            } 
+            // Normal characters
+            else {
+                currentLine += e;
+                term.write(e);
+            }
+        });
+
+        window.addEventListener('resize', () => fitAddon.fit());
+    </script>
+</body>
+</html>
