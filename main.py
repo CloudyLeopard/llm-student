@@ -11,7 +11,7 @@ init(autoreset=True)
 # --- CONFIGURATION ---
 client = OpenAI()
 
-class ChaosClassroom:
+class TeachingSimulator:
     def __init__(self):
         self.topic = ""
         self.curriculum = [] 
@@ -392,5 +392,5 @@ class ChaosClassroom:
             self.print_student(response)
 
 if __name__ == "__main__":
-    game = ChaosClassroom()
+    game = TeachingSimulator()
     game.start()

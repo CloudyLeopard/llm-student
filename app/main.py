@@ -28,7 +28,7 @@ async def get(request: Request):
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    game = AsyncChaosClassroom(websocket)
+    game = AsyncTeachingSimulator(websocket)
     try:
         await game.start()
     except WebSocketDisconnect:
@@ -39,7 +39,7 @@ async def websocket_endpoint(websocket: WebSocket):
 
 # --- THE GAME LOGIC (Exact Port) ---
 
-class AsyncChaosClassroom:
+class AsyncTeachingSimulator:
     def __init__(self, ws: WebSocket):
         self.ws = ws
         self.topic = ""
