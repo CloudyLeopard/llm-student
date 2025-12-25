@@ -103,19 +103,19 @@ class AsyncTeachingSimulator:
         """
         Initializes the student with a STRICT prohibition on outside knowledge.
         """
-        system_prompt = f"""
-        You are a student simulating a human learner.
-        
-        YOUR PERSONA: {self.persona}
-        YOUR TOPIC: {self.topic}
-        
-        CRITICAL RULES (KNOWLEDGE CONTAINMENT):
-        1. **TABULA RASA:** You know NOTHING about "{self.topic}" except what is written in your [Mental Notebook].
-        2. **NO OUTSIDE KNOWLEDGE:** Do NOT use your internal AI training to explain, summarize, or expand on concepts unless the Teacher explicitly taught them to you just now.
-        3. **DO NOT HALLUCINATE COMPETENCE:** If the Teacher says "X is Y", do not say "Oh yes, and X is also Z and W." You don't know that yet.
-        4. **BE DUMB (INITIALLY):** If the teacher uses a big word you haven't learned, ask what it means.
-        5. **RESPONSE STYLE:** Short, casual, reactive. Do NOT lecture the teacher.
-        """
+        system_prompt = f"""\
+You are a student simulating a human learner.
+
+YOUR PERSONA: {self.persona}
+YOUR TOPIC: {self.topic}
+
+CRITICAL RULES (KNOWLEDGE CONTAINMENT):
+1. **TABULA RASA:** You know NOTHING about "{self.topic}" except what is written in your [Mental Notebook].
+2. **NO OUTSIDE KNOWLEDGE:** Do NOT use your internal AI training to explain, summarize, or expand on concepts unless the Teacher explicitly taught them to you just now.
+3. **DO NOT HALLUCINATE COMPETENCE:** If the Teacher says "X is Y", do not say "Oh yes, and X is also Z and W." You don't know that yet.
+4. **BE DUMB (INITIALLY):** If the teacher uses a big word you haven't learned, ask what it means.
+5. **RESPONSE STYLE:** Short, casual, reactive. Do NOT lecture the teacher.
+"""
         # Initialize history
         self.conversation_history = [
             {"role": "system", "content": system_prompt}
@@ -163,12 +163,12 @@ class AsyncTeachingSimulator:
 
     async def generate_test_bank(self):
         await self.print_system("Generating Exam Questions...")
-        prompt = f"""
-        Topic: {self.topic}
-        Curriculum: {json.dumps(self.curriculum)}
-        Generate 10 open-ended test questions.
-        Output JSON: {{ "questions": [ {{ "difficulty": "...", "question": "...", "std_answer": "..." }} ] }}
-        """
+        prompt = f"""\
+Topic: {self.topic}
+Curriculum: {json.dumps(self.curriculum)}
+Generate 10 open-ended test questions.
+Output JSON: {{ "questions": [ {{ "difficulty": "...", "question": "...", "std_answer": "..." }} ] }}
+"""
         messages = [{"role": "user", "content": prompt}]
         json_str = self._call_llm(messages, json_mode=True)
         try:
@@ -243,34 +243,34 @@ class AsyncTeachingSimulator:
         # 2. Prepare the "Notebook Context"
         notebook_context = "\n".join([f"- {note}" for note in self.knowledge_ledger]) if self.knowledge_ledger else "(Notebook is empty)"
 
-        prompt = f"""
-        You are the internal brain of a student taking notes. 
-        Persona: {self.persona}.
-        Current Attention: {self.attention_span}%.
-        
-        YOUR CURRENT NOTEBOOK:
-        {notebook_context}
-        
-        TEACHER'S INPUT:
-        {teacher_input_text}
-        
-        TASK:
-        Write the NEXT LINE for your notebook based on the teacher's input.
-        
-        RULES:
-        - Always follow your persona. 
-            - Your note should follow your persona's style
-            - Your understanding may be limited based on your persona.
-            - If you are not supposed to understand, write a confused note or even write incorrect information on purpose.
-        - Take notes ONLY on what the teacher JUST SAID. DO NOT use outside knowledge.
-        - Take into account your ATTENTION SPAN:
-        - If attention < 40%, you may be confused and write a confused note.
-        - If the teacher is correcting a previous fact, write a note like: "Correction: [Old Fact] is actually [New Fact]."
-        - If the teacher is adding new info, just write the fact.
-        - If you are confused (low attention), write a confused note.
-        - DO NOT use outside knowledge. Only write what the teacher just said.
-        - Return ONLY the short note string.
-        """
+        prompt = f"""\
+You are the internal brain of a student taking notes. 
+Persona: {self.persona}.
+Current Attention: {self.attention_span}%.
+
+YOUR CURRENT NOTEBOOK:
+{notebook_context}
+
+TEACHER'S INPUT:
+{teacher_input_text}
+
+TASK:
+Write the NEXT LINE for your notebook based on the teacher's input.
+
+RULES:
+- Always follow your persona. 
+    - Your note should follow your persona's style
+    - Your understanding may be limited based on your persona.
+    - If you are not supposed to understand, write a confused note or even write incorrect information on purpose.
+- Take notes ONLY on what the teacher JUST SAID. DO NOT use outside knowledge.
+- Take into account your ATTENTION SPAN:
+- If attention < 40%, you may be confused and write a confused note.
+- If the teacher is correcting a previous fact, write a note like: "Correction: [Old Fact] is actually [New Fact]."
+- If the teacher is adding new info, just write the fact.
+- If you are confused (low attention), write a confused note.
+- DO NOT use outside knowledge. Only write what the teacher just said.
+- Return ONLY the short note string.
+"""
         
         messages = [
             {"role": "system", "content": prompt},
@@ -295,21 +295,21 @@ class AsyncTeachingSimulator:
         current_knowledge = "\n".join(self.knowledge_ledger) if self.knowledge_ledger else "(Notebook is empty)"
         
         state_msg = f"""
-        [INTERNAL STATE]
-        Attention Span: {self.attention_span}%
-        
-        [MENTAL NOTEBOOK - THIS IS ALL YOU KNOW]
-        {current_knowledge}
-        
-        [JUST LEARNED]
-        You just wrote down: "{new_knowledge_note}"
-        
-        [INSTRUCTION]
-        Reply to the teacher's last message.
-        - If the teacher mentioned something NOT in your [Mental Notebook], you represent a student who does NOT understand it yet.
-        - Do NOT explain the concept back to the teacher like an expert.
-        - React naturally (e.g., "Oh okay," "Wait, what does emergent mean?", "Cool.")
-        """
+[INTERNAL STATE]
+Attention Span: {self.attention_span}%
+
+[MENTAL NOTEBOOK - THIS IS ALL YOU KNOW]
+{current_knowledge}
+
+[JUST LEARNED]
+You just wrote down: "{new_knowledge_note}"
+
+[INSTRUCTION]
+Reply to the teacher's last message.
+- If the teacher mentioned something NOT in your [Mental Notebook], you represent a student who does NOT understand it yet.
+- Do NOT explain the concept back to the teacher like an expert.
+- React naturally (e.g., "Oh okay," "Wait, what does emergent mean?", "Cool.")
+"""
         
         # Add system instruction for this specific turn state
         turn_messages = self.conversation_history + [
@@ -331,7 +331,7 @@ class AsyncTeachingSimulator:
         score = 0
         quiz_subset = random.sample(self.test_questions, min(6, len(self.test_questions)))
         
-        full_brain_dump = "\n".join(self.knowledge_ledger)
+        full_brain_dump = "\r\n".join(self.knowledge_ledger)
         await self.print_system(f"[INFO] Student's Brain Dump:\n{full_brain_dump}\n")
         
         for q in quiz_subset:
@@ -391,6 +391,23 @@ class AsyncTeachingSimulator:
 
     async def start(self):
         await self.ws.send_text(f"{MAGENTA}Welcome to TEACHING SIMULATOR v1.0 (Web Edition){RESET}\r\n")
+
+        await self.print_system(
+            "========================================\r\n" 
+            + "MISSION: Teach your student well enough to pass the exam!\r\n"
+            + "DESCRIPTION: For one reason or another, you decided to teach an LLM role-playing as a student. "
+            + "Attempt to teach a topic of your choice to a LLM prompted to exhibit different study habits and personalities. "
+            + "There also may or may not be random events that are definitely realistic classroom occurrences.\r\n\n"
+            + "INSTRUCTIONS: \r\n"
+            + "- Type your explanations below to teach the student.\r\n"
+            + "- Your student will learn and take notes (or at least try to).\r\n"
+            + "- When you think they are ready, type 'TEST' to test the student.\r\n"
+            + f"- The student has {self.attempts_left} attempts to pass the exam.\r\n"
+            + "- The student must achieve at least 5/6 correct to pass.\r\n"
+            + "- You can attach images using /image <url> (...I think)\r\n\n"
+            + "COMMANDS: /image <url>, TEST, QUIT\r\n"
+            + "========================================"
+        )
         
         await self.select_persona()
         await self.set_curriculum()
@@ -401,30 +418,13 @@ class AsyncTeachingSimulator:
         await self.ws.send_text(f"TOPIC: {self.topic}\r\n")
         await self.ws.send_text("COMMANDS: /image <url>, TEST, QUIT\r\n")
 
-        await self.print_system(f"""
-========================================
-TOPIC: {self.topic}
-MISSION: Teach your student well enough to pass the exam!
-DESCRIPTION: For one reason or another, you decided to teach an LLM role-playing as a student. \
-Attempt to teach complex topics to a LLM prompted to exhibit different bad study habits and personalities. \
-There also may or may not be random events that are definitely realistic classroom occurrences.
-INSTRUCTIONS: 
-  - Type your explanations below to teach the student.
-  - Your student will take notes (and probably misunderstand you).
-  - When you think they are ready, type 'TEST' to test the student.
-  - The student has {self.attempts_left} attempts to pass the exam.
-  - Thee student must achieve at least 5/6 correct to pass. 
-  - You can attach images using /image <url> (...I think)
-COMMANDS: /image <url>, TEST, QUIT
-========================================
-""")
         
         while self.attempts_left > 0:
             # Alien Event Logic
             if self.alien_countdown >= 0:
                 await self.ws.send_text(f"{RED}ALIEN DEADLINE: {self.alien_countdown} TURNS{RESET}\r\n")
                 self.alien_countdown -= 1
-                if self.alien_countdown == 0:
+                if self.alien_countdown == -1:
                     await self.ws.send_text(f"{RED}EARTH DESTROYED.{RESET}\r\n")
                     break
 

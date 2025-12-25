@@ -1,14 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Teaching Simulator</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
     <style>
-        body { background-color: #000; margin: 0; padding: 0; height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-        #terminal { width: 90%; height: 90%; }
+        body {
+            background-color: #000;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #terminal {
+            width: 90%;
+            height: 90%;
+            white-space: pre-wrap; 
+            font-family: monospace;
+            text-align: left;
+        }
     </style>
 </head>
+
 <body>
     <div id="terminal"></div>
 
@@ -21,7 +39,7 @@
             fontFamily: 'Menlo, Monaco, "Courier New", monospace',
             fontSize: 16
         });
-        
+
         const fitAddon = new FitAddon.FitAddon();
         term.loadAddon(fitAddon);
         term.open(document.getElementById('terminal'));
@@ -52,14 +70,14 @@
                 term.write('\r\n');
                 ws.send(currentLine);
                 currentLine = '';
-            } 
+            }
             // Backspace (127)
             else if (e === '\x7f') {
                 if (currentLine.length > 0) {
                     currentLine = currentLine.slice(0, -1);
                     term.write('\b \b'); // Erase character visually
                 }
-            } 
+            }
             // Normal characters
             else {
                 currentLine += e;
@@ -70,4 +88,5 @@
         window.addEventListener('resize', () => fitAddon.fit());
     </script>
 </body>
+
 </html>
